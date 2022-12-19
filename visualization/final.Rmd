@@ -1,0 +1,414 @@
+---
+title: "Final"
+author: "Long"
+date: "26/05/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#LOAD ALL PACKAGE
+library(tidyverse)
+library(igraph)
+library(network)
+library(viridis)
+library(DT)
+library(gridExtra)
+library(ggrepel)
+library(patchwork)
+library(ggquiver) 
+library(gapminder)
+library(emojifont)
+library(ggiraphExtra)
+library(GGally)
+library(ggalluvial)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(cartogram)
+library(maptools)
+library(sf)
+library(rgeos)
+library(ggplot2)
+library(raster)
+library(sp)
+library(rgdal)
+library(covdata)
+library(dplyr)
+library(magrittr)
+library(grid)
+library(ggtext)
+library(ggrepel)
+library(ggspatial)
+library(cowplot)
+library(maps)
+library(rgeos)
+options(scipen=999)
+```
+
+```{r}
+first <- read_csv("./data/first.csv")
+second <- read_csv("./data/second.csv")
+third <- read_csv("./data/third.csv")
+
+first <- first[c("location","year","race","gender","age_of_shooter","location_1","fatalities","injured","total_victims","prior_signs_mental_health_issues","latitude","longitude")]
+names(first)[names(first)=="location"] <- "Location"
+names(first)[names(first)=="year"] <- "Year"
+names(first)[names(first)=="race"] <- "Race"
+names(first)[names(first)=="gender"] <- "Gender"
+names(first)[names(first)=="age_of_shooter"] <- "Age"
+names(first)[names(first)=="location_1"] <- "ShootingSite"
+names(first)[names(first)=="fatalities"] <- "Fatalities"
+names(first)[names(first)=="injured"] <- "Injured"
+names(first)[names(first)=="total_victims"] <- "TotalVictims"
+names(first)[names(first)=="prior_signs_mental_health_issues"] <- "Mental_Illness"
+names(first)[names(first)=="latitude"] <- "Latitude"
+names(first)[names(first)=="longitude"] <- "Longitude"
+
+
+second <- second[c("Location","Date","Race","Gender","Age","Incident Area","Fatalities","Injured","Total victims","Mental Health Issues","Latitude","Longitude")]
+names(second)[names(second)=="Date"] <- "Year"
+names(second)[names(second)=="Incident Area"] <- "ShootingSite"
+names(second)[names(second)=="Mental Health Issues"] <- "Mental_Illness"
+names(second)[names(second)=="Total victims"] <- "TotalVictims"
+
+
+third <- third[c("location","year","race","gender","age_of_shooter","location_1","fatalities","injured","total_victims","prior_signs_mental_health_issues","latitude","longitude")]
+
+names(third)[names(third)=="location"] <- "Location"
+names(third)[names(third)=="year"] <- "Year"
+names(third)[names(third)=="race"] <- "Race"
+names(third)[names(third)=="gender"] <- "Gender"
+names(third)[names(third)=="age_of_shooter"] <- "Age"
+names(third)[names(third)=="location_1"] <- "ShootingSite"
+names(third)[names(third)=="fatalities"] <- "Fatalities"
+names(third)[names(third)=="injured"] <- "Injured"
+names(third)[names(third)=="total_victims"] <- "TotalVictims"
+names(third)[names(third)=="prior_signs_mental_health_issues"] <- "Mental_Illness"
+names(third)[names(third)=="latitude"] <- "Latitude"
+names(third)[names(third)=="longitude"] <- "Longitude"
+
+first <- as.data.frame(first)
+second <- as.data.frame(second)
+third <- as.data.frame(third)
+```
+
+```{r}
+##Clean Location Column
+first$Location <- sub("^.*?, ", "", first$Location)
+second$Location <- sub("^.*?, ", "", second$Location)
+third$Location <- sub("^.*?, ", "", third$Location)
+```
+
+```{r}
+##Clean Year Column
+second$Year <- format(as.Date(second$Year, format="%m/%d/%Y"),"%Y") %>% as.numeric()
+```
+
+```{r}
+##Clean Race Column
+
+allRace <- c('White','Black','Asian','Latino','Native')
+first$Race<- str_to_title(first$Race)
+second$Race<- str_to_title(second$Race)
+third$Race<- str_to_title(third$Race)
+
+first$Race[grepl('White',first$Race,fixed=TRUE)] <- 'White'
+first$Race[grepl('Black',first$Race,fixed=TRUE)] <- 'Black'
+first$Race[grepl('Asian',first$Race,fixed=TRUE)] <- 'Asian'
+first$Race[grepl('Latino',first$Race,fixed=TRUE)] <- 'Latino'
+first$Race[grepl('Native',first$Race,fixed=TRUE)] <- 'Native American'
+first$Race[!grepl(paste(allRace,collapse="|"),first$Race)] <- 'Unspecified'
+
+second$Race[grepl('White',second$Race,fixed=TRUE)] <- 'White'
+second$Race[grepl('Black',second$Race,fixed=TRUE)] <- 'Black'
+second$Race[grepl('Asian',second$Race,fixed=TRUE)] <- 'Asian'
+second$Race[grepl('Latino',second$Race,fixed=TRUE)] <- 'Latino'
+second$Race[grepl('Native',second$Race,fixed=TRUE)] <- 'Native American'
+second$Race[!grepl(paste(allRace,collapse="|"),second$Race)] <- 'Unspecified'
+
+third$Race[grepl('White',third$Race,fixed=TRUE)] <- 'White'
+third$Race[grepl('Black',third$Race,fixed=TRUE)] <- 'Black'
+third$Race[grepl('Asian',third$Race,fixed=TRUE)] <- 'Asian'
+third$Race[grepl('Latino',third$Race,fixed=TRUE)] <- 'Latino'
+third$Race[grepl('Native',third$Race,fixed=TRUE)] <- 'Native American'
+third$Race[!grepl(paste(allRace,collapse="|"),third$Race)] <- 'Unspecified'
+
+```
+
+```{r}
+##Clean Gender Column
+first$Gender<- str_to_title(first$Gender)
+second$Gender<- str_to_title(second$Gender)
+third$Gender<- str_to_title(third$Gender)
+
+bothGender <- c("&","/")
+maleFemale <- c("Male","Female")
+
+first$Gender[first$Gender == "M"] <- "Male"
+first$Gender[first$Gender == "F"] <- "Female"
+first$Gender[grepl(paste(bothGender,collapse="|"),first$Gender)] <- 'Male & Female'
+first$Gender[!grepl(paste(maleFemale,collapse="|"), first$Gender)] <- 'Unspecified'
+
+second$Gender[second$Gender == "M"] <- "Male"
+second$Gender[second$Gender == "F"] <- "Female"
+second$Gender[grepl(paste(bothGender,collapse="|"),second$Gender)] <- 'Male & Female'
+second$Gender[!grepl(paste(maleFemale,collapse="|"), second$Gender)] <- 'Unspecified'
+
+third$Gender[third$Gender == "M"] <- "Male"
+third$Gender[third$Gender == "F"] <- "Female"
+third$Gender[grepl(paste(bothGender,collapse="|"),third$Gender)] <- 'Male & Female'
+third$Gender[!grepl(paste(maleFemale,collapse="|"), third$Gender)] <- 'Unspecified'
+```
+
+```{r}
+##Clean Age Column
+first$Age <- as.numeric(first$Age)
+second$Age <- as.numeric(second$Age)
+third$Age <- as.numeric(third$Age)
+
+first <- mutate(first, AgeGroup = ifelse(Age>=40,"Middle-Senior Adult",
+                                                ifelse(Age>=20,"Adult",
+                                                       ifelse(Age>=10,"Teen","Unspecified"
+                                                              ))))
+
+second <- mutate(second, AgeGroup = ifelse(Age>=40,"Middle-Senior Adult",
+                                                ifelse(Age>=20,"Adult",
+                                                       ifelse(Age>=10,"Teen","Unspecified"
+                                                              ))))
+
+third <- mutate(third, AgeGroup = ifelse(Age>=40,"Middle-Senior Adult",
+                                                ifelse(Age>=20,"Adult",
+                                                       ifelse(Age>=10,"Teen","Unspecified"
+                                                              ))))
+
+first$AgeGroup <- replace_na(first$AgeGroup,"Unspecified")
+second$AgeGroup <- replace_na(second$AgeGroup,"Unspecified")
+third$AgeGroup <- replace_na(third$AgeGroup,"Unspecified")
+```
+
+```{r}
+##Clean Shooting Site column
+
+first$ShootingSite<- str_to_title(first$ShootingSite)
+second$ShootingSite<- str_to_title(second$ShootingSite)
+third$ShootingSite<- str_to_title(third$ShootingSite)
+
+religious <- c("Temple","Church","Monastery","Religious")
+school <- c("School","Academy","University","College")
+military <- c("Military","Army")
+allSite <-c("Military","School","Religious")
+
+second$ShootingSite[grepl(paste(religious,collapse="|"),second$ShootingSite)] <- 'Religious'
+second$ShootingSite[grepl(paste(school,collapse="|"),second$ShootingSite)] <- 'School'
+second$ShootingSite[grepl(paste(military,collapse="|"),second$ShootingSite)] <- 'Military'
+second$ShootingSite[!grepl(paste(allSite,collapse="|"), second$ShootingSite)] <- 'Other'
+
+
+##for first & third
+
+first$ShootingSite[!grepl(paste(allSite,collapse="|"), first$ShootingSite)] <- 'Other'
+third$ShootingSite[!grepl(paste(allSite,collapse="|"), third$ShootingSite)] <- 'Other'
+```
+
+
+```{r}
+##Clean Fatalities, Injured and Victim
+first$Fatalities <- as.numeric(first$Fatalities)
+second$Fatalities <- as.numeric(second$Fatalities)
+third$Fatalities <- as.numeric(third$Fatalities)
+
+first$Injured <- as.numeric(first$Injured)
+second$Injured <- as.numeric(second$Injured)
+third$Injured <- as.numeric(third$Injured)
+
+first$TotalVictims <- as.numeric(first$TotalVictims)
+second$TotalVictims <- as.numeric(second$TotalVictims)
+third$TotalVictims <- as.numeric(third$TotalVictims)
+```
+
+```{r}
+##Clean Mental Illness
+first$Mental_Illness<- str_to_title(first$Mental_Illness)
+second$Mental_Illness<- str_to_title(second$Mental_Illness)
+third$Mental_Illness<- str_to_title(third$Mental_Illness)
+
+yesNo <- c("Yes","No")
+
+first$Mental_Illness[!grepl(paste(yesNo,collapse="|"), first$Mental_Illness)] <- 'Unspecified'
+second$Mental_Illness[!grepl(paste(yesNo,collapse="|"), second$Mental_Illness)] <- 'Unspecified'
+third$Mental_Illness[!grepl(paste(yesNo,collapse="|"), third$Mental_Illness)] <- 'Unspecified'
+
+```
+
+```{r}
+##Clean Longitutde and Latitude
+first$Longitude <- as.numeric(first$Longitude)
+second$Longitude <- as.numeric(second$Longitude)
+third$Longitude <- as.numeric(third$Longitude)
+
+first$Latitude <- as.numeric(first$Latitude)
+second$Latitude <- as.numeric(second$Latitude)
+third$Latitude <- as.numeric(third$Latitude)
+```
+
+```{r}
+##MERGE ALL THREE
+df <- rbind(first,second)
+df <- rbind(df, third)
+##REMOVE DUPLICATED ROW
+df <- df %>% distinct(df$Year,df$Race,df$Gender,df$ShootingSite,df$TotalVictims,.keep_all = TRUE)
+```
+
+
+```{r}
+##FIRST VIZ
+summary <- mutate(df,highlight = ifelse(ShootingSite=="School","School","Other")) %>% filter(Year >= 1980)
+summary <- mutate(summary,timePeriod= ifelse(Year >=2010,"2010-2022",
+                                                       ifelse(Year>=2000,"2000-2009",
+                                                             ifelse(Year>= 1990, "1990-1999","1980-1989"))))
+summary <- count(summary,timePeriod, highlight, Fatalities, TotalVictims)
+summary %>% group_by(timePeriod, highlight) %>% summarise(Fatalities=sum(Fatalities),Total_Victims = sum(TotalVictims), Total_Incidents = sum(n)) -> summary
+summary <- mutate(summary, Fatalities_Percentage = round((Fatalities/Total_Victims) * 100,1))
+```
+
+```{r}
+summaryFirst <- summary %>% mutate(alphaValue = ifelse(highlight=="Other",0.3,0.9))
+only_school <- summaryFirst %>% filter(highlight=="School")
+only_other <- summaryFirst %>% filter(highlight=="Other")
+
+
+ggplot(summaryFirst,aes(x=timePeriod,y=Fatalities,fill=highlight))+
+  geom_point(data=only_school,aes(x=timePeriod,y=Fatalities))+
+  geom_bar(position="stack",stat="identity",aes(alpha=alphaValue))+
+  scale_fill_manual(values = c("Other Locations"="grey","School"="#D14646"))+
+  geom_line(data=only_school,aes(x=timePeriod,y=Fatalities,group=1), linetype = "dashed")+
+  geom_text(data=only_school,aes(x=timePeriod,y=Fatalities,label = paste0("Incidents:", Total_Incidents,"\nDeaths:", Fatalities)), size = 3,vjust = -0.5)+
+  scale_alpha_identity()+
+  theme_minimal()+
+  labs(title="Gun Violence Overtime in America (1980-2022)",subtitle = "<b style='color:#D14646'>Schools</b> are one of the most targeted location with number of incidents and casualties on the rise", fill="Shooting Location", caption="Not Including injuries and Indirect Death")+
+  theme(panel.grid.minor.x = element_blank(),
+        panel.grid.major.x = element_blank(),
+        plot.subtitle = element_markdown(size=8),
+        legend.position="top"
+       )+
+  xlab("Time Period")+
+  ylab("Number of Death")
+  
+
+```
+```{r}
+ggsave("bar.pdf")
+ggsave("bar.png", width = 6, height = 6, dpi = "screen")
+```
+
+
+
+```{r}
+##SECOND VIZ ALLUVIAL
+
+for2nd <- df[c('Race','Gender','AgeGroup','Mental_Illness','ShootingSite')]  %>% filter(Race != "Unspecified") %>% filter(Gender != "Male & Female")
+
+for2nd <- mutate(for2nd,Race = ifelse(Race == "White","White",
+                                                        ifelse(Race=="Black","Black",
+                                                               ifelse(Race=="Asian","Asian","Other"))))
+
+
+
+for2nd <- for2nd %>% count(Race,Gender,AgeGroup,Mental_Illness,ShootingSite)
+
+for2nd_highlight <- mutate(for2nd, highlight_school = ifelse(ShootingSite == "School","School","Other"))
+for2nd_highlight <- mutate(for2nd_highlight, alphaValue = ifelse(ShootingSite == "School",0.6,0.15))
+```
+
+```{r}
+ggplot(for2nd_highlight,aes(y=n,axis1=Race,axis2=Gender,axis4=Mental_Illness,axis3=AgeGroup,axis5=ShootingSite))+
+  geom_flow(aes(fill = highlight_school, color=highlight_school,alpha=alphaValue), width = 1/12,curve_type = "quintic")+
+  geom_stratum(width = 1/4)+
+  geom_label(stat = "stratum", size = 2.5,aes(label = after_stat(stratum)),fontface = "bold") +
+  scale_x_discrete(limits = c("Race", "Gender","Age Group", "Mental Illness", "Shooting Site"), expand = c(.05, .05))+
+  scale_fill_manual(values = c("Other Locations"="grey","School"="red"))+
+  scale_alpha_identity()+
+  scale_color_manual(values=c("darkgrey","darkred"))+
+  labs(title="Common Characteristics of School Shooters",subtitle="**White Male Teenagers with sign of Mental Illness** are among the most common perpetrator in <b style='color:#D14646'>Schools Shooting</b> " ,fill="Shooting Location")+
+  theme_minimal()+
+  theme(axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.subtitle = element_markdown(size = 8),
+        legend.position="top"
+        )+
+  ylab("")+
+  guides(color=FALSE)
+```
+```{r}
+ggsave("alluvial.pdf")
+ggsave("alluvial.png", width = 6, height = 6, dpi = "screen")
+```
+
+
+```{r}
+sf::sf_use_s2(FALSE)
+states <- st_as_sf(map("state", plot = FALSE, fill = TRUE))
+world <- ne_countries(scale = "medium", returnclass = "sf")
+states <- cbind(states, st_coordinates(st_centroid(states)))
+```
+```{r}
+##Add abbreviation
+states$ID <- str_to_title(states$ID)
+abbrv <- read_csv("./data/abbr-name.csv")
+states <- merge(states,abbrv,by="ID", all=TRUE)
+```
+
+```{r}
+##Data for 3rd Viz
+for3rd <- df[c('TotalVictims','ShootingSite','Latitude','Longitude')]
+##Remove 1 duplicated and NA
+for3rd <- for3rd[!(for3rd$TotalVictims==585),]
+for3rd <- na.omit(for3rd)
+##Highlight
+for3rd <- mutate(for3rd,ShootingSite=ifelse(ShootingSite=="School","School","Other"))
+for3rd <- mutate(for3rd,alphaValue=ifelse(ShootingSite=="School",1,0.3))
+for3rd <- st_as_sf(for3rd, coords = c("Longitude", "Latitude"), 
+    crs = 4326, agr = "identity")
+
+only_cali <- states %>% filter(ID == "California")
+texas_shooting <- df %>% filter(Location=="Texas", TotalVictims==38)
+```
+
+```{r}
+ggplot(data = world) +
+    geom_sf(fill="#e0e0e0",color="#ebe7e2") +
+    geom_sf(data = states, fill="#f8f4ec",color="#7b7b77",size=0.001) + 
+    geom_text(data = states, aes(X, Y, label = Abbrv), size = 2) +
+    geom_sf(data=for3rd, aes(size=TotalVictims, color=ShootingSite, alpha=alphaValue))+
+    scale_size(range=c(1,8),breaks=c(5,25,50,100,200),labels=c("1-5 Victims","5-25 Victims","25-50 Victims","50-100 Victims","Over 100 Victims"))+
+    scale_color_manual(values =c("Other"="#5961a7","School"="#8e3428"))+
+    geom_text_repel(data=only_cali,aes(x=X,y=Y,label="Witnesses over 7 gun violences at school\n and plenty other gun crimes"),fontface = "bold", size=2,nudge_x = -2, nudge_y = -6.5)+
+  geom_text_repel(data=texas_shooting,aes(x=-97.5,y=30,label="Recent School Shooting on May 24, 2022\n 19 childrens and 2 Teachers were killed"),fontface = "bold", size=2,nudge_x = 4, nudge_y = -4)+
+    scale_alpha_identity()+
+    guides(size=guide_legend(title="Victim Count"))+
+    coord_sf(xlim = c(-130, -65), ylim = c(24, 50), expand = FALSE)+
+    labs(title="Gun Violence Across US", subtitle="Data sparsely recorded from 1980 to 2022, with **California (CA)** being hotspot", caption= "*Victim count include both injured and killed victim.")+
+    theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        panel.background = element_rect(fill = "#b9c7d4"),
+        plot.subtitle = element_markdown()
+        )+
+    labs(color="Shooting Location")+
+    ylab("")+
+    xlab("")
+    
+```
+
+```{r}
+ggsave("map.pdf")
+ggsave("map_web.png", width = 6, height = 6, dpi = "screen")
+```
